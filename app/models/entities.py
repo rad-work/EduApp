@@ -49,6 +49,7 @@ class Problem(Base):
     slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     statement: Mapped[str] = mapped_column(Text, nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

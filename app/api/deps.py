@@ -29,6 +29,21 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    access_token: str | None = Cookie(default=None, alias=settings.auth_cookie_name),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not access_token:
+        return None
+    try:
+        payload = decode_access_token(access_token)
+        user_id = int(payload["sub"])
+    except (ValueError, KeyError, TypeError):
+        return None
+    user = db.scalar(select(User).where(User.id == user_id, User.is_active.is_(True)))
+    return user
+
+
 def require_role(role: UserRole | str) -> Callable:
     role_value = role.value if isinstance(role, UserRole) else role
 

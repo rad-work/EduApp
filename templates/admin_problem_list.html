@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ: задачи</title>
+  <link rel="stylesheet" href="/static/auth.css">
+</head>
+<body>
+  <main class="auth-card wide">
+    <h1>Управление задачами</h1>
+    <div class="actions">
+      <a class="button-link" href="/admin/problems/new">Создать задачу</a>
+      <a class="button-link" href="/admin">Назад</a>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Slug</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for problem in problems %}
+        <tr>
+          <td>{{ problem.id }}</td>
+          <td>{{ problem.title }}</td>
+          <td>{{ problem.slug }}</td>
+          <td>{% if problem.is_archived %}Архив{% else %}Активна{% endif %}</td>
+          <td class="actions">
+            <a class="button-link" href="/admin/problems/{{ problem.id }}/edit">Редактировать</a>
+            <form method="post" action="/admin/problems/{{ problem.id }}/archive">
+              <button type="submit">{% if problem.is_archived %}Разархивировать{% else %}Архивировать{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

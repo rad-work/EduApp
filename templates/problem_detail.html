@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ problem.title }}</title>
+  <link rel="stylesheet" href="/static/auth.css">
+</head>
+<body>
+  <main class="auth-card wide">
+    <a href="/problems">← К списку задач</a>
+    <h1>{{ problem.title }}</h1>
+    <pre class="statement">{{ problem.statement }}</pre>
+
+    <h2>Примеры тестов</h2>
+    {% for sample in samples %}
+    <section class="sample">
+      <h3>Пример {{ loop.index }}</h3>
+      <strong>Input:</strong>
+      <pre>{{ sample.input_data }}</pre>
+      <strong>Output:</strong>
+      <pre>{{ sample.expected_output }}</pre>
+    </section>
+    {% else %}
+    <p>Для этой задачи пока нет sample-тестов.</p>
+    {% endfor %}
+  </main>
+</body>
+</html>

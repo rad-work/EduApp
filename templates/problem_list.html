@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Задачи</title>
+  <link rel="stylesheet" href="/static/auth.css">
+</head>
+<body>
+  <main class="auth-card wide">
+    <h1>Список задач</h1>
+    <div class="actions">
+      {% if user %}
+      <span>Вы вошли как {{ user.username }}</span>
+      <form method="post" action="/logout">
+        <button type="submit">Выйти</button>
+      </form>
+      {% else %}
+      <a class="button-link" href="/login">Войти</a>
+      <a class="button-link" href="/register">Регистрация</a>
+      {% endif %}
+      {% if user and user.role.value == "admin" %}
+      <a class="button-link" href="/admin/problems">Админ задачи</a>
+      {% endif %}
+    </div>
+    <ul class="problem-list">
+      {% for problem in problems %}
+      <li>
+        <a href="/problems/{{ problem.slug }}">{{ problem.title }}</a>
+      </li>
+      {% else %}
+      <li>Пока нет опубликованных задач.</li>
+      {% endfor %}
+    </ul>
+  </main>
+</body>
+</html>

@@ -1,25 +1,64 @@
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_role
+from app.api.deps import get_current_user, get_optional_user, require_role
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.models import User, UserRole
+from app.models import Problem, TestCase, User, UserRole
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request, current_user: User = Depends(get_current_user)) -> HTMLResponse:
+def index(request: Request) -> RedirectResponse:
+    return RedirectResponse("/problems", status_code=302)
+
+
+@router.get("/problems", response_class=HTMLResponse)
+def problem_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+) -> HTMLResponse:
+    problems = db.scalars(
+        select(Problem).where(Problem.is_archived.is_(False)).order_by(Problem.id.desc())
+    ).all()
     return templates.TemplateResponse(
         request,
-        "index.html",
-        {"user": current_user},
+        "problem_list.html",
+        {"user": current_user, "problems": problems},
+    )
+
+
+@router.get("/problems/{slug}", response_class=HTMLResponse)
+def problem_detail(
+    slug: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+) -> HTMLResponse:
+    problem = db.scalar(
+        select(Problem).where(
+            Problem.slug == slug,
+            Problem.is_archived.is_(False),
+        )
+    )
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    samples = db.scalars(
+        select(TestCase)
+        .where(TestCase.problem_id == problem.id, TestCase.is_sample.is_(True))
+        .order_by(TestCase.order_index.asc(), TestCase.id.asc())
+    ).all()
+    return templates.TemplateResponse(
+        request,
+        "problem_detail.html",
+        {"user": current_user, "problem": problem, "samples": samples},
     )
 
 
@@ -33,6 +72,142 @@ def admin_page(
         "admin.html",
         {"user": current_user},
     )
+
+
+@router.get("/admin/problems", response_class=HTMLResponse)
+def admin_problems(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+) -> HTMLResponse:
+    problems = db.scalars(select(Problem).order_by(Problem.id.desc())).all()
+    return templates.TemplateResponse(
+        request,
+        "admin_problem_list.html",
+        {"user": current_user, "problems": problems},
+    )
+
+
+@router.get("/admin/problems/new", response_class=HTMLResponse)
+def admin_problem_new_page(
+    request: Request,
+    current_user: User = Depends(require_role("admin")),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "admin_problem_form.html",
+        {"user": current_user, "problem": None, "error": None},
+    )
+
+
+@router.post("/admin/problems/new")
+def admin_problem_create(
+    request: Request,
+    title: str = Form(...),
+    slug: str = Form(...),
+    statement: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+) -> HTMLResponse:
+    existing = db.scalar(select(Problem).where(Problem.slug == slug))
+    if existing:
+        return templates.TemplateResponse(
+            request,
+            "admin_problem_form.html",
+            {"user": current_user, "problem": None, "error": "Slug уже занят"},
+            status_code=409,
+        )
+    problem = Problem(
+        title=title.strip(),
+        slug=slug.strip(),
+        statement=statement.strip(),
+        author_id=current_user.id,
+        is_archived=False,
+    )
+    db.add(problem)
+    db.commit()
+    return RedirectResponse("/admin/problems", status_code=303)
+
+
+@router.get("/admin/problems/{problem_id}/edit", response_class=HTMLResponse)
+def admin_problem_edit_page(
+    problem_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+) -> HTMLResponse:
+    problem = db.get(Problem, problem_id)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    tests = db.scalars(
+        select(TestCase).where(TestCase.problem_id == problem_id).order_by(TestCase.order_index.asc())
+    ).all()
+    return templates.TemplateResponse(
+        request,
+        "admin_problem_form.html",
+        {"user": current_user, "problem": problem, "tests": tests, "error": None},
+    )
+
+
+@router.post("/admin/problems/{problem_id}/edit")
+def admin_problem_edit(
+    problem_id: int,
+    title: str = Form(...),
+    slug: str = Form(...),
+    statement: str = Form(...),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role("admin")),
+) -> RedirectResponse:
+    problem = db.get(Problem, problem_id)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    duplicate = db.scalar(select(Problem).where(Problem.slug == slug.strip(), Problem.id != problem_id))
+    if duplicate:
+        raise HTTPException(status_code=409, detail="Slug already exists")
+    problem.title = title.strip()
+    problem.slug = slug.strip()
+    problem.statement = statement.strip()
+    db.commit()
+    return RedirectResponse(f"/admin/problems/{problem_id}/edit", status_code=303)
+
+
+@router.post("/admin/problems/{problem_id}/archive")
+def admin_problem_archive(
+    problem_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role("admin")),
+) -> RedirectResponse:
+    problem = db.get(Problem, problem_id)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    problem.is_archived = not problem.is_archived
+    db.commit()
+    return RedirectResponse("/admin/problems", status_code=303)
+
+
+@router.post("/admin/problems/{problem_id}/tests")
+def admin_problem_add_test(
+    problem_id: int,
+    input_data: str = Form(...),
+    expected_output: str = Form(...),
+    order_index: int = Form(0),
+    is_sample: bool = Form(False),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role("admin")),
+) -> RedirectResponse:
+    problem = db.get(Problem, problem_id)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    test_case = TestCase(
+        problem_id=problem_id,
+        input_data=input_data,
+        expected_output=expected_output,
+        order_index=order_index,
+        is_sample=is_sample,
+    )
+    db.add(test_case)
+    db.commit()
+    return RedirectResponse(f"/admin/problems/{problem_id}/edit", status_code=303)
 
 
 @router.get("/login", response_class=HTMLResponse)
