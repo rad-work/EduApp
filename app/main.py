@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
 from app.api.pages import router as pages_router
+from app.api.submissions import router as submissions_router
 from app.core.config import settings
 from app.core.database import check_db_connection
 
@@ -19,6 +20,7 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth_router)
 app.include_router(pages_router)
+app.include_router(submissions_router)
 
 
 @app.get("/health", tags=["health"])

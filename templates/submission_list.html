@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мои посылки</title>
+  <link rel="stylesheet" href="/static/auth.css">
+</head>
+<body>
+  <main class="auth-card wide">
+    <h1>Мои посылки</h1>
+    <a class="button-link" href="/problems">К списку задач</a>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Задача ID</th>
+          <th>Язык</th>
+          <th>Статус</th>
+          <th>Создана</th>
+          <th>Детали</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for submission in submissions %}
+        <tr>
+          <td>{{ submission.id }}</td>
+          <td>{{ submission.problem_id }}</td>
+          <td>{{ submission.language }}</td>
+          <td>{{ submission.status.value }}</td>
+          <td>{{ submission.created_at }}</td>
+          <td><a href="/submissions/{{ submission.id }}">Открыть</a></td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6">У вас пока нет посылок.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

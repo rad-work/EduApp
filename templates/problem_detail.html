@@ -12,6 +12,20 @@
     <h1>{{ problem.title }}</h1>
     <pre class="statement">{{ problem.statement }}</pre>
 
+    {% if user %}
+    <h2>Отправить решение</h2>
+    <form method="post" action="/problems/{{ problem.slug }}/submit">
+      <label>Язык</label>
+      <input type="text" name="language" placeholder="python" required>
+      <label>Код</label>
+      <textarea name="source_code" rows="10" required></textarea>
+      <button type="submit">Отправить посылку</button>
+    </form>
+    <a class="button-link" href="/submissions">Мои посылки</a>
+    {% else %}
+    <p>Чтобы отправить решение, <a href="/login">войдите</a>.</p>
+    {% endif %}
+
     <h2>Примеры тестов</h2>
     {% for sample in samples %}
     <section class="sample">

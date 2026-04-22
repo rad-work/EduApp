@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -8,7 +10,7 @@ from app.api.deps import get_current_user, get_optional_user, require_role
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.models import Problem, TestCase, User, UserRole
+from app.models import Problem, Submission, SubmissionStatus, TestCase, User, UserRole
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="templates")
@@ -59,6 +61,75 @@ def problem_detail(
         request,
         "problem_detail.html",
         {"user": current_user, "problem": problem, "samples": samples},
+    )
+
+
+@router.post("/problems/{slug}/submit")
+def submit_solution(
+    slug: str,
+    language: str = Form(...),
+    source_code: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RedirectResponse:
+    problem = db.scalar(
+        select(Problem).where(
+            Problem.slug == slug,
+            Problem.is_archived.is_(False),
+        )
+    )
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    submission = Submission(
+        user_id=current_user.id,
+        problem_id=problem.id,
+        language=language.strip(),
+        source_code=source_code,
+        status=SubmissionStatus.QUEUED,
+        queued_at=datetime.now(UTC),
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+    return RedirectResponse(f"/submissions/{submission.id}", status_code=303)
+
+
+@router.get("/submissions", response_class=HTMLResponse)
+def my_submissions(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> HTMLResponse:
+    submissions = db.scalars(
+        select(Submission)
+        .where(Submission.user_id == current_user.id)
+        .order_by(Submission.id.desc())
+    ).all()
+    return templates.TemplateResponse(
+        request,
+        "submission_list.html",
+        {"user": current_user, "submissions": submissions},
+    )
+
+
+@router.get("/submissions/{submission_id}", response_class=HTMLResponse)
+def submission_detail(
+    submission_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> HTMLResponse:
+    submission = db.scalar(select(Submission).where(Submission.id == submission_id))
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    is_admin = current_user.role.value == "admin"
+    if submission.user_id != current_user.id and not is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return templates.TemplateResponse(
+        request,
+        "submission_detail.html",
+        {"user": current_user, "submission": submission},
     )
 
 

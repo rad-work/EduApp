@@ -12,6 +12,7 @@
     <div class="actions">
       {% if user %}
       <span>Вы вошли как {{ user.username }}</span>
+      <a class="button-link" href="/submissions">Мои посылки</a>
       <form method="post" action="/logout">
         <button type="submit">Выйти</button>
       </form>
