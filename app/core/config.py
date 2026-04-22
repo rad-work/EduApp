@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     app_port: int = 8000
     database_url: str = "postgresql+psycopg://eduapp_user:eduapp_password@db:5432/eduapp"
     redis_url: str = "redis://redis:6379/0"
+    jwt_secret_key: str = "change_me_for_production"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24
+    auth_cookie_name: str = "access_token"
 
     model_config = SettingsConfigDict(
         env_file=".env",

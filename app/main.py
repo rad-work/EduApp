@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 
+from app.api.auth import router as auth_router
+from app.api.pages import router as pages_router
 from app.core.config import settings
 from app.core.database import check_db_connection
 
@@ -13,6 +16,9 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.include_router(auth_router)
+app.include_router(pages_router)
 
 
 @app.get("/health", tags=["health"])
