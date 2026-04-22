@@ -1,6 +1,6 @@
 # EduAppMai
 
-Базовый каркас платформы задач по программированию (аналог Codeforces/LeetCode) на стеке FastAPI + PostgreSQL + Redis.
+Базовый каркас платформы для решения задач по программированию
 
 ## Tech stack
 - Python 3.12
