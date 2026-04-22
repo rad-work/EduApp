@@ -21,8 +21,12 @@ services:
     container_name: eduapp_worker
     env_file:
       - .env
+    environment:
+      PROJECT_ROOT: ${PWD}
     volumes:
       - .:/app
+      - ${PWD}:${PWD}
+      - /var/run/docker.sock:/var/run/docker.sock
     command: rq worker ${REDIS_QUEUE_NAME:-submission_queue} --url ${REDIS_URL}
     depends_on:
       - db

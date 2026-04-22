@@ -9,7 +9,6 @@
 <body>
   <main class="auth-card">
     <h1>Привет, {{ user.username }}!</h1>
-    <p>Роль: <strong>{{ user.role.value }}</strong></p>
     <div class="actions">
       <form method="post" action="/logout">
         <button type="submit">Выйти</button>

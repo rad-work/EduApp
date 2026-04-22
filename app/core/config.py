@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
     auth_cookie_name: str = "access_token"
     redis_queue_name: str = "submission_queue"
+    runner_image: str = "eduapp_runner:latest"
+    runner_cpu_limit: float = 0.5
+    runner_memory_limit_mb: int = 256
+    runner_timeout_sec: int = 2
+    project_root: str = "/app"
 
     model_config = SettingsConfigDict(
         env_file=".env",
