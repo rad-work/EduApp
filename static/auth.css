@@ -99,3 +99,15 @@ button,
   margin: 0;
   white-space: pre-wrap;
 }
+
+.submit-status {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #d0d4e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.submit-status.hidden {
+  display: none;
+}

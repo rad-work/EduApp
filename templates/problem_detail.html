@@ -14,13 +14,19 @@
 
     {% if user %}
     <h2>Отправить решение</h2>
-    <form method="post" action="/problems/{{ problem.slug }}/submit">
+    <form id="submit-form" method="post" action="/problems/{{ problem.slug }}/submit" data-problem-id="{{ problem.id }}">
       <label>Язык</label>
-      <input type="text" name="language" placeholder="python" required>
+      <input type="text" name="language" placeholder="python" value="python" required>
       <label>Код</label>
       <textarea name="source_code" rows="10" required></textarea>
       <button type="submit">Отправить посылку</button>
     </form>
+    <section id="submit-status" class="submit-status hidden">
+      <p><strong>Submission ID:</strong> <span id="submission-id">-</span></p>
+      <p><strong>Status:</strong> <span id="submission-status">-</span></p>
+      <p><strong>Verdict:</strong> <span id="submission-verdict">-</span></p>
+      <p id="submission-message"></p>
+    </section>
     <a class="button-link" href="/submissions">Мои посылки</a>
     {% else %}
     <p>Чтобы отправить решение, <a href="/login">войдите</a>.</p>
@@ -39,5 +45,6 @@
     <p>Для этой задачи пока нет sample-тестов.</p>
     {% endfor %}
   </main>
+  <script src="/static/submission_polling.js"></script>
 </body>
 </html>

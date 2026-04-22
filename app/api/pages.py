@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -119,6 +119,7 @@ def my_submissions(
 def submission_detail(
     submission_id: int,
     request: Request,
+    poll: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> HTMLResponse:
@@ -133,6 +134,18 @@ def submission_detail(
         .where(SubmissionResult.submission_id == submission.id)
         .order_by(SubmissionResult.id.desc())
     )
+    if poll:
+        is_final = submission.status in (SubmissionStatus.COMPLETED, SubmissionStatus.FAILED)
+        return JSONResponse(
+            {
+                "id": submission.id,
+                "status": submission.status.value,
+                "verdict": latest_result.verdict.value if latest_result else None,
+                "message": latest_result.message if latest_result else None,
+                "is_final": is_final,
+                "finished_at": submission.finished_at.isoformat() if submission.finished_at else None,
+            }
+        )
     return templates.TemplateResponse(
         request,
         "submission_detail.html",
