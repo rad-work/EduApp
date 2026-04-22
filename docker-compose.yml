@@ -14,6 +14,20 @@ services:
       - db
       - redis
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eduapp_worker
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    command: rq worker ${REDIS_QUEUE_NAME:-submission_queue} --url ${REDIS_URL}
+    depends_on:
+      - db
+      - redis
+
   db:
     image: postgres:16-alpine
     container_name: eduapp_db

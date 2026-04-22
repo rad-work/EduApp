@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
     auth_cookie_name: str = "access_token"
+    redis_queue_name: str = "submission_queue"
 
     model_config = SettingsConfigDict(
         env_file=".env",

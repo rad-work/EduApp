@@ -10,7 +10,8 @@ from app.api.deps import get_current_user, get_optional_user, require_role
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.models import Problem, Submission, SubmissionStatus, TestCase, User, UserRole
+from app.models import Problem, Submission, SubmissionResult, SubmissionStatus, TestCase, User, UserRole
+from app.services.queue import enqueue_submission
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="templates")
@@ -92,6 +93,7 @@ def submit_solution(
     db.add(submission)
     db.commit()
     db.refresh(submission)
+    enqueue_submission(submission.id)
     return RedirectResponse(f"/submissions/{submission.id}", status_code=303)
 
 
@@ -126,10 +128,15 @@ def submission_detail(
     is_admin = current_user.role.value == "admin"
     if submission.user_id != current_user.id and not is_admin:
         raise HTTPException(status_code=403, detail="Forbidden")
+    latest_result = db.scalar(
+        select(SubmissionResult)
+        .where(SubmissionResult.submission_id == submission.id)
+        .order_by(SubmissionResult.id.desc())
+    )
     return templates.TemplateResponse(
         request,
         "submission_detail.html",
-        {"user": current_user, "submission": submission},
+        {"user": current_user, "submission": submission, "latest_result": latest_result},
     )
 
 

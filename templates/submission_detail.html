@@ -14,6 +14,7 @@
       <li>Задача ID: {{ submission.problem_id }}</li>
       <li>Язык: {{ submission.language }}</li>
       <li>Статус: {{ submission.status.value }}</li>
+      <li>Последний вердикт: {{ latest_result.verdict.value if latest_result else "-" }}</li>
       <li>Создана: {{ submission.created_at }}</li>
       <li>Поставлена в очередь: {{ submission.queued_at }}</li>
       <li>Завершена: {{ submission.finished_at }}</li>

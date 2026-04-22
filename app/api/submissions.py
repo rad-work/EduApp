@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models import Problem, Submission, SubmissionStatus, User
+from app.services.queue import enqueue_submission
 from app.schemas import SubmissionStatusResponse
 
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])
@@ -35,6 +36,7 @@ def create_submission(
     db.add(submission)
     db.commit()
     db.refresh(submission)
+    enqueue_submission(submission.id)
     return submission
 
 
