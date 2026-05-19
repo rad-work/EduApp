@@ -20,6 +20,14 @@
       <input type="text" name="slug" value="{{ problem.slug if problem else '' }}" required>
       <label>Условие</label>
       <textarea name="statement" rows="8" required>{{ problem.statement if problem else '' }}</textarea>
+      <label>Сложность</label>
+      <select name="difficulty" required>
+        {% for d in difficulties %}
+        <option value="{{ d.value }}" {% if problem and problem.difficulty.value == d.value %}selected{% elif not problem and d.value == 'medium' %}selected{% endif %}>{{ d.value }}</option>
+        {% endfor %}
+      </select>
+      <label>Теги (через запятую)</label>
+      <input type="text" name="tags" value="{{ tag_list | join(', ') }}" placeholder="dp, graphs">
       <button type="submit">Сохранить</button>
     </form>
 

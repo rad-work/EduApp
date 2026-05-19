@@ -1,5 +1,5 @@
 from app.models.entities import Problem, ProblemTag, Submission, SubmissionResult, Tag, TestCase, User
-from app.models.enums import SubmissionStatus, UserRole, Verdict
+from app.models.enums import ProblemDifficulty, SubmissionStatus, UserRole, Verdict
 
 __all__ = [
     "User",
@@ -10,6 +10,7 @@ __all__ = [
     "Tag",
     "ProblemTag",
     "UserRole",
+    "ProblemDifficulty",
     "SubmissionStatus",
     "Verdict",
 ]

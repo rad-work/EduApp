@@ -10,34 +10,51 @@
   <main class="auth-card wide">
     <h1>Мои посылки</h1>
     <a class="button-link" href="/problems">К списку задач</a>
+
+    <section class="stats-panel">
+      <h2>Ваша статистика</h2>
+      <p>Посылок: <strong>{{ user_stats.attempt_count }}</strong> · Решено задач (AC): <strong>{{ user_stats.solved_count }}</strong></p>
+    </section>
+
     <table class="table">
       <thead>
         <tr>
           <th>ID</th>
-          <th>Задача ID</th>
+          <th>Задача</th>
           <th>Язык</th>
           <th>Статус</th>
+          <th>Вердикт</th>
           <th>Создана</th>
           <th>Детали</th>
         </tr>
       </thead>
       <tbody>
-        {% for submission in submissions %}
+        {% for submission in page.items %}
+        {% set verdict = verdicts.get(submission.id) %}
         <tr>
           <td>{{ submission.id }}</td>
-          <td>{{ submission.problem_id }}</td>
+          <td>
+            {% if submission.problem %}
+            <a href="/problems/{{ submission.problem.slug }}">{{ submission.problem.title }}</a>
+            {% else %}
+            #{{ submission.problem_id }}
+            {% endif %}
+          </td>
           <td>{{ submission.language }}</td>
           <td>{{ submission.status.value }}</td>
+          <td>{{ verdict.value if verdict else "—" }}</td>
           <td>{{ submission.created_at }}</td>
           <td><a href="/submissions/{{ submission.id }}">Открыть</a></td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="6">У вас пока нет посылок.</td>
+          <td colspan="7">У вас пока нет посылок.</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    {% include "_pagination.html" %}
   </main>
 </body>
 </html>

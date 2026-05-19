@@ -15,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-from app.models.enums import SubmissionStatus, UserRole, Verdict
+from app.models.enums import ProblemDifficulty, SubmissionStatus, UserRole, Verdict
 
 
 class User(Base):
@@ -49,6 +49,11 @@ class Problem(Base):
     slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     statement: Mapped[str] = mapped_column(Text, nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    difficulty: Mapped[ProblemDifficulty] = mapped_column(
+        Enum(ProblemDifficulty, name="problem_difficulty_enum"),
+        nullable=False,
+        default=ProblemDifficulty.MEDIUM,
+    )
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

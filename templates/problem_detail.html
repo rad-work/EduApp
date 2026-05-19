@@ -10,6 +10,24 @@
   <main class="auth-card wide">
     <a href="/problems">← К списку задач</a>
     <h1>{{ problem.title }}</h1>
+    <p class="meta">
+      <span class="badge difficulty-{{ problem.difficulty.value }}">{{ problem.difficulty.value }}</span>
+      {% for tag in problem_tag_names(problem) %}
+      <span class="badge tag">{{ tag }}</span>
+      {% endfor %}
+    </p>
+    <section class="stats-panel compact">
+      <p>
+        Всего посылок: <strong>{{ problem_stats.attempt_count }}</strong> ·
+        AC (уникальных пользователей): <strong>{{ problem_stats.ac_count }}</strong>
+      </p>
+      {% if user_problem_stats %}
+      <p>
+        Ваши попытки: <strong>{{ user_problem_stats.attempt_count }}</strong> ·
+        Статус: <strong>{% if user_problem_stats.solved %}решено (AC){% else %}ещё не решено{% endif %}</strong>
+      </p>
+      {% endif %}
+    </section>
     <pre class="statement">{{ problem.statement }}</pre>
 
     {% if user %}

@@ -1,17 +1,40 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, get_optional_user, require_role
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.models import Problem, Submission, SubmissionResult, SubmissionStatus, TestCase, User, UserRole
+from app.models import (
+    Problem,
+    ProblemDifficulty,
+    ProblemTag,
+    Submission,
+    SubmissionResult,
+    SubmissionStatus,
+    TestCase,
+    User,
+    UserRole,
+)
+from app.services.pagination import paginate
+from app.services.problem_filters import build_problem_list_query, parse_tag_filter
+from app.services.query_string import build_query_string
 from app.services.queue import enqueue_submission
+from app.services.stats import (
+    ProblemStats,
+    get_all_tag_names,
+    get_latest_verdicts,
+    get_problem_stats,
+    get_user_problem_stats,
+    get_user_stats,
+    problem_tag_names,
+    sync_problem_tags,
+)
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="templates")
@@ -27,14 +50,42 @@ def problem_list(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_user),
+    difficulty: str | None = Query(None),
+    tags: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
 ) -> HTMLResponse:
-    problems = db.scalars(
-        select(Problem).where(Problem.is_archived.is_(False)).order_by(Problem.id.desc())
-    ).all()
+    difficulty_filter: ProblemDifficulty | None = None
+    if difficulty:
+        try:
+            difficulty_filter = ProblemDifficulty(difficulty)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid difficulty") from exc
+
+    tag_names = parse_tag_filter(tags)
+    stmt = build_problem_list_query(difficulty=difficulty_filter, tag_names=tag_names or None)
+    problem_page = paginate(db, stmt, page, page_size)
+    problem_ids = [problem.id for problem in problem_page.items]
+    stats_by_problem = get_problem_stats(db, problem_ids)
+    user_stats = get_user_stats(db, current_user.id) if current_user else None
+    all_tags = get_all_tag_names(db)
+    query_string = build_query_string(difficulty=difficulty, tags=tags, page_size=page_size)
+
     return templates.TemplateResponse(
         request,
         "problem_list.html",
-        {"user": current_user, "problems": problems},
+        {
+            "user": current_user,
+            "page": problem_page,
+            "stats_by_problem": stats_by_problem,
+            "user_stats": user_stats,
+            "all_tags": all_tags,
+            "difficulty": difficulty,
+            "tags": tags,
+            "query_string": query_string,
+            "problem_tag_names": problem_tag_names,
+            "difficulties": list(ProblemDifficulty),
+        },
     )
 
 
@@ -46,7 +97,9 @@ def problem_detail(
     current_user: User | None = Depends(get_optional_user),
 ) -> HTMLResponse:
     problem = db.scalar(
-        select(Problem).where(
+        select(Problem)
+        .options(selectinload(Problem.tags).selectinload(ProblemTag.tag))
+        .where(
             Problem.slug == slug,
             Problem.is_archived.is_(False),
         )
@@ -58,10 +111,21 @@ def problem_detail(
         .where(TestCase.problem_id == problem.id, TestCase.is_sample.is_(True))
         .order_by(TestCase.order_index.asc(), TestCase.id.asc())
     ).all()
+    problem_stats = get_problem_stats(db, [problem.id]).get(problem.id, ProblemStats(0, 0))
+    user_problem_stats = (
+        get_user_problem_stats(db, current_user.id, problem.id) if current_user else None
+    )
     return templates.TemplateResponse(
         request,
         "problem_detail.html",
-        {"user": current_user, "problem": problem, "samples": samples},
+        {
+            "user": current_user,
+            "problem": problem,
+            "samples": samples,
+            "problem_stats": problem_stats,
+            "user_problem_stats": user_problem_stats,
+            "problem_tag_names": problem_tag_names,
+        },
     )
 
 
@@ -102,16 +166,31 @@ def my_submissions(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
 ) -> HTMLResponse:
-    submissions = db.scalars(
+    stmt = (
         select(Submission)
         .where(Submission.user_id == current_user.id)
+        .options(selectinload(Submission.problem))
         .order_by(Submission.id.desc())
-    ).all()
+    )
+    submission_page = paginate(db, stmt, page, page_size)
+    submission_ids = [submission.id for submission in submission_page.items]
+    verdicts = get_latest_verdicts(db, submission_ids)
+    user_stats = get_user_stats(db, current_user.id)
+    query_string = build_query_string(page_size=page_size)
+
     return templates.TemplateResponse(
         request,
         "submission_list.html",
-        {"user": current_user, "submissions": submissions},
+        {
+            "user": current_user,
+            "page": submission_page,
+            "verdicts": verdicts,
+            "user_stats": user_stats,
+            "query_string": query_string,
+        },
     )
 
 
@@ -187,7 +266,13 @@ def admin_problem_new_page(
     return templates.TemplateResponse(
         request,
         "admin_problem_form.html",
-        {"user": current_user, "problem": None, "error": None},
+        {
+            "user": current_user,
+            "problem": None,
+            "error": None,
+            "tag_list": [],
+            "difficulties": list(ProblemDifficulty),
+        },
     )
 
 
@@ -197,6 +282,8 @@ def admin_problem_create(
     title: str = Form(...),
     slug: str = Form(...),
     statement: str = Form(...),
+    difficulty: str = Form(ProblemDifficulty.MEDIUM.value),
+    tags: str = Form(""),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ) -> HTMLResponse:
@@ -208,14 +295,23 @@ def admin_problem_create(
             {"user": current_user, "problem": None, "error": "Slug уже занят"},
             status_code=409,
         )
+    try:
+        problem_difficulty = ProblemDifficulty(difficulty)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid difficulty") from exc
+
     problem = Problem(
         title=title.strip(),
         slug=slug.strip(),
         statement=statement.strip(),
         author_id=current_user.id,
+        difficulty=problem_difficulty,
         is_archived=False,
     )
     db.add(problem)
+    db.commit()
+    db.refresh(problem)
+    sync_problem_tags(db, problem.id, tags.split(","))
     db.commit()
     return RedirectResponse("/admin/problems", status_code=303)
 
@@ -227,16 +323,28 @@ def admin_problem_edit_page(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ) -> HTMLResponse:
-    problem = db.get(Problem, problem_id)
+    problem = db.scalar(
+        select(Problem)
+        .options(selectinload(Problem.tags).selectinload(ProblemTag.tag))
+        .where(Problem.id == problem_id)
+    )
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
     tests = db.scalars(
         select(TestCase).where(TestCase.problem_id == problem_id).order_by(TestCase.order_index.asc())
     ).all()
+    tag_list = problem_tag_names(problem)
     return templates.TemplateResponse(
         request,
         "admin_problem_form.html",
-        {"user": current_user, "problem": problem, "tests": tests, "error": None},
+        {
+            "user": current_user,
+            "problem": problem,
+            "tests": tests,
+            "error": None,
+            "tag_list": tag_list,
+            "difficulties": list(ProblemDifficulty),
+        },
     )
 
 
@@ -246,6 +354,8 @@ def admin_problem_edit(
     title: str = Form(...),
     slug: str = Form(...),
     statement: str = Form(...),
+    difficulty: str = Form(...),
+    tags: str = Form(""),
     db: Session = Depends(get_db),
     _: User = Depends(require_role("admin")),
 ) -> RedirectResponse:
@@ -255,9 +365,14 @@ def admin_problem_edit(
     duplicate = db.scalar(select(Problem).where(Problem.slug == slug.strip(), Problem.id != problem_id))
     if duplicate:
         raise HTTPException(status_code=409, detail="Slug already exists")
+    try:
+        problem.difficulty = ProblemDifficulty(difficulty)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid difficulty") from exc
     problem.title = title.strip()
     problem.slug = slug.strip()
     problem.statement = statement.strip()
+    sync_problem_tags(db, problem_id, tags.split(","))
     db.commit()
     return RedirectResponse(f"/admin/problems/{problem_id}/edit", status_code=303)
 

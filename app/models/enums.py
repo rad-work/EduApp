@@ -14,6 +14,12 @@ class SubmissionStatus(StrEnum):
     FAILED = "failed"
 
 
+class ProblemDifficulty(StrEnum):
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+
 class Verdict(StrEnum):
     ACCEPTED = "accepted"
     WRONG_ANSWER = "wrong_answer"

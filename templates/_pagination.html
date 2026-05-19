@@ -1,0 +1,11 @@
+{% if page.total_pages > 1 %}
+<nav class="pagination" aria-label="Пагинация">
+  {% if page.has_prev %}
+  <a class="button-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page.prev_page }}">← Назад</a>
+  {% endif %}
+  <span class="pagination-info">Страница {{ page.page }} из {{ page.total_pages }} (всего {{ page.total }})</span>
+  {% if page.has_next %}
+  <a class="button-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page.next_page }}">Вперёд →</a>
+  {% endif %}
+</nav>
+{% endif %}
