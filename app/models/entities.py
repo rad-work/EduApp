@@ -18,6 +18,10 @@ from app.core.database import Base
 from app.models.enums import ProblemDifficulty, SubmissionStatus, UserRole, Verdict
 
 
+def _enum_values(enum_cls: type) -> list[str]:
+    return [member.value for member in enum_cls]
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -50,7 +54,11 @@ class Problem(Base):
     statement: Mapped[str] = mapped_column(Text, nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     difficulty: Mapped[ProblemDifficulty] = mapped_column(
-        Enum(ProblemDifficulty, name="problem_difficulty_enum"),
+        Enum(
+            ProblemDifficulty,
+            name="problem_difficulty_enum",
+            values_callable=_enum_values,
+        ),
         nullable=False,
         default=ProblemDifficulty.MEDIUM,
     )

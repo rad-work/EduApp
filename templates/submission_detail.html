@@ -11,17 +11,19 @@
     <h1>Посылка #{{ submission.id }}</h1>
     <a class="button-link" href="/submissions">← Мои посылки</a>
     <ul>
-      <li>Задача ID: {{ submission.problem_id }}</li>
+      <li>Задача: №{{ submission.problem_id }}</li>
       <li>Язык: {{ submission.language }}</li>
-      <li>Статус: {{ submission.status.value }}</li>
-      <li>Последний вердикт: {{ latest_result.verdict.value if latest_result else "-" }}</li>
+      <li>Статус: {{ status_label(submission.status) }}</li>
+      <li>Последний вердикт: {{ verdict_label(latest_result.verdict) if latest_result else "—" }}</li>
+      {% if latest_result and latest_result.message %}
+      <li>Сообщение: {{ message_label(latest_result.message) }}</li>
+      {% endif %}
       <li>Создана: {{ submission.created_at }}</li>
-      <li>Поставлена в очередь: {{ submission.queued_at }}</li>
-      <li>Завершена: {{ submission.finished_at }}</li>
+      <li>Поставлена в очередь: {{ submission.queued_at or "—" }}</li>
+      <li>Завершена: {{ submission.finished_at or "—" }}</li>
     </ul>
-    <h2>Код</h2>
+    <h2>Исходный код</h2>
     <pre class="statement">{{ submission.source_code }}</pre>
-    <p>Проверка статуса API: <code>/api/submissions/{{ submission.id }}/status</code></p>
   </main>
 </body>
 </html>

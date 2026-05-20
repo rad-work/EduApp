@@ -4,10 +4,13 @@ from sqlalchemy.orm import selectinload
 from app.models import Problem, ProblemDifficulty, ProblemTag, Tag
 
 
-def parse_tag_filter(tags: str | None) -> list[str]:
-    if not tags:
-        return []
-    return [part.strip().lower() for part in tags.split(",") if part.strip()]
+def parse_tag_filter(tags: str | None = None, selected: list[str] | None = None) -> list[str]:
+    names: list[str] = []
+    if selected:
+        names.extend(part.strip().lower() for part in selected if part and part.strip())
+    if tags:
+        names.extend(part.strip().lower() for part in tags.split(",") if part.strip())
+    return sorted(set(names))
 
 
 def build_problem_list_query(

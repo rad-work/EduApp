@@ -15,17 +15,17 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     if not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Не авторизован")
 
     try:
         payload = decode_access_token(access_token)
         user_id = int(payload["sub"])
     except (ValueError, KeyError, TypeError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен")
 
     user = db.scalar(select(User).where(User.id == user_id))
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден")
     return user
 
 
@@ -49,7 +49,7 @@ def require_role(role: UserRole | str) -> Callable:
 
     def dependency(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role.value != role_value:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещён")
         return current_user
 
     return dependency

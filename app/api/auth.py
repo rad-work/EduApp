@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import check_password, create_access_token, get_password_hash
 from app.models import User, UserRole
 from app.schemas import UserLogin, UserPublic, UserRegister
 
@@ -46,7 +46,7 @@ def register(payload: UserRegister, response: Response, db: Session = Depends(ge
 @router.post("/login", response_model=UserPublic)
 def login(payload: UserLogin, response: Response, db: Session = Depends(get_db)) -> User:
     user = db.scalar(select(User).where(User.username == payload.username))
-    if not user or not verify_password(payload.password, user.password_hash):
+    if not user or not check_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token(str(user.id))

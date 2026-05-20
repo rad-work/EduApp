@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.languages import SOURCE_FILENAMES, container_source_path, normalize_submission_language
 from app.models import Submission, SubmissionResult, SubmissionStatus, TestCase, Verdict
 
 
@@ -82,7 +83,7 @@ def process_submission_job(submission_id: int) -> None:
                     submission_id=submission.id,
                     test_case_id=None,
                     verdict=Verdict.RUNTIME_ERROR,
-                    message="No test cases configured for problem",
+                    message="Для задачи не настроены тесты",
                 )
             )
             submission.status = SubmissionStatus.COMPLETED
@@ -96,9 +97,25 @@ def process_submission_job(submission_id: int) -> None:
         workdir = Path(tmp)
         workdir.chmod(0o777)
         try:
-            source_path = workdir / "main.py"
+            lang = normalize_submission_language(submission.language)
+            if not lang:
+                db.add(
+                    SubmissionResult(
+                        submission_id=submission.id,
+                        test_case_id=None,
+                        verdict=Verdict.COMPILATION_ERROR,
+                        message="Неподдерживаемый язык",
+                    )
+                )
+                submission.status = SubmissionStatus.COMPLETED
+                submission.finished_at = datetime.now(UTC)
+                db.commit()
+                return
+
+            source_path = workdir / SOURCE_FILENAMES[lang]
             source_path.write_text(submission.source_code, encoding="utf-8")
             source_path.chmod(0o666)
+            src_in_container = container_source_path(lang)
 
             compile_code, compile_stderr, _ = _run_runner(
                 client,
@@ -107,9 +124,9 @@ def process_submission_job(submission_id: int) -> None:
                     "--mode",
                     "compile",
                     "--language",
-                    submission.language,
+                    lang,
                     "--source",
-                    "/work/main.py",
+                    src_in_container,
                     "--timeout",
                     str(settings.runner_timeout_sec),
                 ],
@@ -121,7 +138,7 @@ def process_submission_job(submission_id: int) -> None:
                         submission_id=submission.id,
                         test_case_id=None,
                         verdict=Verdict.COMPILATION_ERROR,
-                        message=compile_stderr or "Compilation failed",
+                        message=compile_stderr or "Ошибка компиляции",
                     )
                 )
                 submission.status = SubmissionStatus.COMPLETED
@@ -145,9 +162,9 @@ def process_submission_job(submission_id: int) -> None:
                         "--mode",
                         "run",
                         "--language",
-                        submission.language,
+                        lang,
                         "--source",
-                        "/work/main.py",
+                        src_in_container,
                         "--input",
                         "/work/input.txt",
                         "--output",
@@ -167,7 +184,7 @@ def process_submission_job(submission_id: int) -> None:
                 actual = actual_output.strip()
                 if verdict == Verdict.ACCEPTED and actual != expected:
                     verdict = Verdict.WRONG_ANSWER
-                    message = "Output mismatch"
+                    message = "Ответ не совпадает с эталоном"
 
                 db.add(
                     SubmissionResult(
@@ -187,7 +204,7 @@ def process_submission_job(submission_id: int) -> None:
                         submission_id=submission.id,
                         test_case_id=None,
                         verdict=Verdict.ACCEPTED,
-                        message="All tests passed",
+                        message="Все тесты пройдены",
                     )
                 )
             submission.status = SubmissionStatus.COMPLETED
@@ -205,7 +222,7 @@ def process_submission_job(submission_id: int) -> None:
                     submission_id=submission.id,
                     test_case_id=None,
                     verdict=Verdict.SYSTEM_ERROR,
-                    message="Docker runner unavailable",
+                    message="Среда проверки недоступна",
                 )
             )
             db.commit()

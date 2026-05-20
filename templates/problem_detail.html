@@ -11,20 +11,20 @@
     <a href="/problems">← К списку задач</a>
     <h1>{{ problem.title }}</h1>
     <p class="meta">
-      <span class="badge difficulty-{{ problem.difficulty.value }}">{{ problem.difficulty.value }}</span>
+      <span class="badge difficulty-{{ problem.difficulty.value }}">{{ difficulty_label(problem.difficulty) }}</span>
       {% for tag in problem_tag_names(problem) %}
-      <span class="badge tag">{{ tag }}</span>
+      <span class="badge tag">{{ tag_label(tag) }}</span>
       {% endfor %}
     </p>
     <section class="stats-panel compact">
       <p>
         Всего посылок: <strong>{{ problem_stats.attempt_count }}</strong> ·
-        AC (уникальных пользователей): <strong>{{ problem_stats.ac_count }}</strong>
+        Успешных решений (уникальных пользователей): <strong>{{ problem_stats.ac_count }}</strong>
       </p>
       {% if user_problem_stats %}
       <p>
         Ваши попытки: <strong>{{ user_problem_stats.attempt_count }}</strong> ·
-        Статус: <strong>{% if user_problem_stats.solved %}решено (AC){% else %}ещё не решено{% endif %}</strong>
+        Статус: <strong>{% if user_problem_stats.solved %}решено{% else %}ещё не решено{% endif %}</strong>
       </p>
       {% endif %}
     </section>
@@ -33,16 +33,20 @@
     {% if user %}
     <h2>Отправить решение</h2>
     <form id="submit-form" method="post" action="/problems/{{ problem.slug }}/submit" data-problem-id="{{ problem.id }}">
-      <label>Язык</label>
-      <input type="text" name="language" placeholder="python" value="python" required>
-      <label>Код</label>
-      <textarea name="source_code" rows="10" required></textarea>
+      <label for="submission-language">Язык решения</label>
+      <select id="submission-language" name="language" required>
+        {% for lang in submission_languages %}
+        <option value="{{ lang[0] }}" {% if lang[0] == 'python' %}selected{% endif %}>{{ lang[1] }}</option>
+        {% endfor %}
+      </select>
+      <label for="submission-source">Код</label>
+      <textarea id="submission-source" name="source_code" rows="10" required></textarea>
       <button type="submit">Отправить посылку</button>
     </form>
     <section id="submit-status" class="submit-status hidden">
-      <p><strong>Submission ID:</strong> <span id="submission-id">-</span></p>
-      <p><strong>Status:</strong> <span id="submission-status">-</span></p>
-      <p><strong>Verdict:</strong> <span id="submission-verdict">-</span></p>
+      <p><strong>ID посылки:</strong> <span id="submission-id">—</span></p>
+      <p><strong>Статус:</strong> <span id="submission-status">—</span></p>
+      <p><strong>Вердикт:</strong> <span id="submission-verdict">—</span></p>
       <p id="submission-message"></p>
     </section>
     <a class="button-link" href="/submissions">Мои посылки</a>
@@ -54,13 +58,13 @@
     {% for sample in samples %}
     <section class="sample">
       <h3>Пример {{ loop.index }}</h3>
-      <strong>Input:</strong>
+      <strong>Входные данные:</strong>
       <pre>{{ sample.input_data }}</pre>
-      <strong>Output:</strong>
+      <strong>Выходные данные:</strong>
       <pre>{{ sample.expected_output }}</pre>
     </section>
     {% else %}
-    <p>Для этой задачи пока нет sample-тестов.</p>
+    <p>Для этой задачи пока нет примеров тестов.</p>
     {% endfor %}
   </main>
   <script src="/static/submission_polling.js"></script>

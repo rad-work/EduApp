@@ -7,7 +7,9 @@
   <link rel="stylesheet" href="/static/auth.css">
 </head>
 <body>
-  <main class="auth-card wide">
+  <form id="problem-filters" method="get" action="/problems" hidden></form>
+
+  <main class="auth-card wide problems-page">
     <h1>Список задач</h1>
     <div class="actions">
       {% if user %}
@@ -28,65 +30,71 @@
     {% if user_stats %}
     <section class="stats-panel">
       <h2>Ваша статистика</h2>
-      <p>Посылок: <strong>{{ user_stats.attempt_count }}</strong> · Решено задач (AC): <strong>{{ user_stats.solved_count }}</strong></p>
+      <p>Посылок: <strong>{{ user_stats.attempt_count }}</strong> · Решено задач: <strong>{{ user_stats.solved_count }}</strong></p>
     </section>
     {% endif %}
 
-    <form class="filters" method="get" action="/problems">
-      <label>Сложность</label>
-      <select name="difficulty">
-        <option value="">Любая</option>
-        {% for d in difficulties %}
-        <option value="{{ d.value }}" {% if difficulty == d.value %}selected{% endif %}>{{ d.value }}</option>
-        {% endfor %}
-      </select>
-      <label>Теги (через запятую)</label>
-      <input type="text" name="tags" value="{{ tags or '' }}" placeholder="dp, graphs" list="tag-suggestions">
-      <datalist id="tag-suggestions">
-        {% for tag in all_tags %}
-        <option value="{{ tag }}"></option>
-        {% endfor %}
-      </datalist>
-      <input type="hidden" name="page_size" value="{{ page.page_size }}">
-      <button type="submit">Применить фильтры</button>
-      <a class="button-link secondary" href="/problems">Сбросить</a>
-    </form>
-
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Задача</th>
-          <th>Сложность</th>
-          <th>Теги</th>
-          <th>Посылок</th>
-          <th>AC (пользователей)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for problem in page.items %}
-        {% set stats = stats_by_problem.get(problem.id) %}
-        <tr>
-          <td><a href="/problems/{{ problem.slug }}">{{ problem.title }}</a></td>
-          <td><span class="badge difficulty-{{ problem.difficulty.value }}">{{ problem.difficulty.value }}</span></td>
-          <td>
-            {% for tag in problem_tag_names(problem) %}
-            <span class="badge tag">{{ tag }}</span>
-            {% else %}
-            —
+    <div class="problems-layout">
+      <div class="problems-main">
+        <div class="filters filters-inline">
+          <label>Сложность</label>
+          <select name="difficulty" form="problem-filters">
+            <option value="">Любая</option>
+            {% for d in difficulties %}
+            <option value="{{ d.value }}" {% if difficulty == d.value %}selected{% endif %}>{{ difficulty_label(d) }}</option>
             {% endfor %}
-          </td>
-          <td>{{ stats.attempt_count if stats else 0 }}</td>
-          <td>{{ stats.ac_count if stats else 0 }}</td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="5">Нет задач по выбранным фильтрам.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          </select>
+          <input type="hidden" name="page_size" value="{{ page.page_size }}" form="problem-filters">
+          <button type="submit" form="problem-filters">Применить фильтры</button>
+          <a class="button-link secondary" href="/problems">Сбросить</a>
+        </div>
 
-    {% include "_pagination.html" %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Задача</th>
+              <th>Сложность</th>
+              <th>Теги</th>
+              <th>Посылок</th>
+              <th>Успешных решений</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for problem in page.items %}
+            {% set stats = stats_by_problem.get(problem.id) %}
+            <tr>
+              <td><a href="/problems/{{ problem.slug }}">{{ problem.title }}</a></td>
+              <td><span class="badge difficulty-{{ problem.difficulty.value }}">{{ difficulty_label(problem.difficulty) }}</span></td>
+              <td>
+                {% for tag in problem_tag_names(problem) %}
+                <span class="badge tag">{{ tag_label(tag) }}</span>
+                {% else %}
+                —
+                {% endfor %}
+              </td>
+              <td>{{ stats.attempt_count if stats else 0 }}</td>
+              <td>{{ stats.ac_count if stats else 0 }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5">Нет задач по выбранным фильтрам.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% include "_pagination.html" %}
+      </div>
+
+      <aside class="tags-sidebar" aria-label="Фильтр по тегам">
+        <div class="tags-sidebar-inner">
+          {% with panel_title="Теги", selected_tags=selected_tags, form_id="problem-filters" %}
+          {% include "_tag_select.html" %}
+          {% endwith %}
+          <button type="submit" class="tags-sidebar-submit" form="problem-filters">Применить теги</button>
+        </div>
+      </aside>
+    </div>
   </main>
 </body>
 </html>

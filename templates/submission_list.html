@@ -13,7 +13,7 @@
 
     <section class="stats-panel">
       <h2>Ваша статистика</h2>
-      <p>Посылок: <strong>{{ user_stats.attempt_count }}</strong> · Решено задач (AC): <strong>{{ user_stats.solved_count }}</strong></p>
+      <p>Посылок: <strong>{{ user_stats.attempt_count }}</strong> · Решено задач: <strong>{{ user_stats.solved_count }}</strong></p>
     </section>
 
     <table class="table">
@@ -41,8 +41,8 @@
             {% endif %}
           </td>
           <td>{{ submission.language }}</td>
-          <td>{{ submission.status.value }}</td>
-          <td>{{ verdict.value if verdict else "—" }}</td>
+          <td>{{ status_label(submission.status) }}</td>
+          <td>{{ verdict_label(verdict) if verdict else "—" }}</td>
           <td>{{ submission.created_at }}</td>
           <td><a href="/submissions/{{ submission.id }}">Открыть</a></td>
         </tr>
